@@ -62,6 +62,7 @@ func (c *Command) diffFiles() *exec.Cmd {
 		"diff",
 		"--ignore-all-space",
 		"--diff-algorithm=minimal",
+    "--diff-filter=M",
 		"--unified=" + strconv.Itoa(c.diffUnified),
 	}
 

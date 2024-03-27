@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"html"
+  "fmt"
 	"os"
-	"path"
-	"strconv"
+	// "path"
+	// "strconv"
+  "log"
+  "context"
 	"strings"
 	"time"
 
@@ -17,6 +20,10 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+  
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/schema"
 )
 
 var (
@@ -66,7 +73,9 @@ var commitCmd = &cobra.Command{
 		if err := check(); err != nil {
 			return err
 		}
-
+    
+		color.Green("this is commit start")
+    
 		g := git.New(
 			git.WithDiffUnified(viper.GetInt("git.diff_unified")),
 			git.WithExcludeList(viper.GetStringSlice("git.exclude_list")),
@@ -76,6 +85,9 @@ var commitCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+    // color.Green("diff are diff \n")
+    color.Green("Diff output:")
+    color.Red(diff)
 
 		// Update the OpenAI client request timeout if the timeout value is greater than the default openai.timeout
 		if timeout > viper.GetDuration("openai.timeout") ||
@@ -89,28 +101,38 @@ var commitCmd = &cobra.Command{
 		}
 
 		color.Green("Summarize the commit message use " + currentModel + " model")
-		client, err := openai.New(
-			openai.WithToken(viper.GetString("openai.api_key")),
-			openai.WithModel(viper.GetString("openai.model")),
-			openai.WithOrgID(viper.GetString("openai.org_id")),
-			openai.WithProxyURL(viper.GetString("openai.proxy")),
-			openai.WithSocksURL(viper.GetString("openai.socks")),
-			openai.WithBaseURL(viper.GetString("openai.base_url")),
-			openai.WithTimeout(viper.GetDuration("openai.timeout")),
-			openai.WithMaxTokens(viper.GetInt("openai.max_tokens")),
-			openai.WithTemperature(float32(viper.GetFloat64("openai.temperature"))),
-			openai.WithProvider(viper.GetString("openai.provider")),
-			openai.WithModelName(viper.GetString("openai.model_name")),
-			openai.WithSkipVerify(viper.GetBool("openai.skip_verify")),
-			openai.WithHeaders(viper.GetStringSlice("openai.headers")),
-			openai.WithApiVersion(viper.GetString("openai.api_version")),
-			openai.WithTopP(float32(viper.GetFloat64("openai.top_p"))),
-			openai.WithFrequencyPenalty(float32(viper.GetFloat64("openai.frequency_penalty"))),
-			openai.WithPresencePenalty(float32(viper.GetFloat64("openai.presence_penalty"))),
-		)
-		if err != nil && !promptOnly {
-			return err
-		}
+
+    // ollama test
+    
+    // llm, err := ollama.New(ollama.WithModel("codellama:7b"))
+    llm, err := ollama.New(ollama.WithModel("llama2"))
+    if err != nil {
+      log.Fatal(err)
+    }
+    ctx := context.Background()
+
+		// client, err := openai.New(
+		// 	openai.WithToken(viper.GetString("openai.api_key")),
+		// 	openai.WithModel(viper.GetString("openai.model")),
+		// 	openai.WithOrgID(viper.GetString("openai.org_id")),
+		// 	openai.WithProxyURL(viper.GetString("openai.proxy")),
+		// 	openai.WithSocksURL(viper.GetString("openai.socks")),
+		// 	openai.WithBaseURL(viper.GetString("openai.base_url")),
+		// 	openai.WithTimeout(viper.GetDuration("openai.timeout")),
+		// 	openai.WithMaxTokens(viper.GetInt("openai.max_tokens")),
+		// 	openai.WithTemperature(float32(viper.GetFloat64("openai.temperature"))),
+		// 	openai.WithProvider(viper.GetString("openai.provider")),
+		// 	openai.WithModelName(viper.GetString("openai.model_name")),
+		// 	openai.WithSkipVerify(viper.GetBool("openai.skip_verify")),
+		// 	openai.WithHeaders(viper.GetStringSlice("openai.headers")),
+		// 	openai.WithApiVersion(viper.GetString("openai.api_version")),
+		// 	openai.WithTopP(float32(viper.GetFloat64("openai.top_p"))),
+		// 	openai.WithFrequencyPenalty(float32(viper.GetFloat64("openai.frequency_penalty"))),
+		// 	openai.WithPresencePenalty(float32(viper.GetFloat64("openai.presence_penalty"))),
+		// )
+		// if err != nil && !promptOnly {
+		// 	return err
+		// }
 
 		data := util.Data{}
 		// add template vars
@@ -130,7 +152,7 @@ var commitCmd = &cobra.Command{
 				data[k] = v
 			}
 		}
-
+    
 		// Get code review message from diff datas
 		if _, ok := data[prompt.SummarizeMessageKey]; !ok {
 			out, err := util.GetTemplateByString(
@@ -150,18 +172,37 @@ var commitCmd = &cobra.Command{
 				color.Yellow("==================================================")
 				return nil
 			}
-
+      color.Cyan("We are trying to summarize a git diff")
+      color.Green("the prompt are: " + out)  
+      
+      var outputBuilder strings.Builder // Declare a builder to accumulate the chunks.
+      content := []llms.MessageContent{
+        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to summarize a git diff."),
+        llms.TextParts(schema.ChatMessageTypeHuman, out),
+      }
+      completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+        outputBuilder.Write(chunk) // Append the chunk to the builder.
+        // fmt.Print(string(chunk))
+        return nil
+      }))
+      if err != nil {
+        log.Fatal(err)
+      }
+      _ = completion
+      
+      fmt.Println()
+      fullOutput := outputBuilder.String()
+      // fmt.Println("Full output:", fullOutput) // Now you have the full output as a single string.
 			// Get summarize comment from diff datas
-			color.Cyan("We are trying to summarize a git diff")
-			resp, err := client.Completion(cmd.Context(), out)
-			if err != nil {
-				return err
-			}
-			data[prompt.SummarizeMessageKey] = strings.TrimSpace(resp.Content)
-			color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-				", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-				", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			)
+			// resp, err := client.Completion(cmd.Context(), out)
+			// if err != nil {
+			// 	return err
+			// }
+			data[prompt.SummarizeMessageKey] = strings.TrimSpace(fullOutput)
+			// color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+			// 	", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+			// 	", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+			// )
 		}
 
 		// Get summarize title from diff datas
@@ -178,17 +219,31 @@ var commitCmd = &cobra.Command{
 
 			// Get summarize title from diff datas
 			color.Cyan("We are trying to summarize a title for pull request")
-			resp, err := client.Completion(cmd.Context(), out)
-			if err != nil {
-				return err
-			}
-			summarizeTitle := resp.Content
-			color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-				", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-				", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			)
+			// resp, err := client.Completion(cmd.Context(), out)
+      content := []llms.MessageContent{
+        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to title a pull request."),
+        llms.TextParts(schema.ChatMessageTypeHuman, out),
+      }     
+			// if err != nil {
+			// 	return err
+			// }
+      var summarizeTitleBuilder strings.Builder // Declare a builder to accumulate the chunks.
+      completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+        summarizeTitleBuilder.Write(chunk) // Append the chunk to the builder.
+        // fmt.Print(string(chunk))
+        return nil
+      }))
+      if err != nil {
+        log.Fatal(err)
+      }
+      _ = completion
+			// color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+			// 	", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+			// 	", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+			// )
 
 			// lowercase the first character of first word of the commit message and remove last period
+      summarizeTitle := summarizeTitleBuilder.String()
 			summarizeTitle = strings.TrimRight(strings.ToLower(string(summarizeTitle[0]))+summarizeTitle[1:], ".")
 			data[prompt.SummarizeTitleKey] = strings.TrimSpace(summarizeTitle)
 		}
@@ -204,31 +259,46 @@ var commitCmd = &cobra.Command{
 				return err
 			}
 			color.Cyan("We are trying to get conventional commit prefix")
-			summaryPrix := ""
-			if client.AllowFuncCall() {
-				resp, err := client.CreateFunctionCall(cmd.Context(), out, openai.SummaryPrefixFunc)
-				if err != nil {
-					return err
-				}
-				if len(resp.Choices) > 0 {
-					args := openai.GetSummaryPrefixArgs(resp.Choices[0].Message.FunctionCall.Arguments)
-					summaryPrix = args.Prefix
-				}
-				color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-					", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-					", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-				)
-			} else {
-				resp, err := client.Completion(cmd.Context(), out)
-				if err != nil {
-					return err
-				}
-				summaryPrix = strings.TrimSpace(resp.Content)
-				color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-					", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-					", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-				)
-			}
+			// summaryPrix := ""
+      content := []llms.MessageContent{
+        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to summarize a code change."),
+        llms.TextParts(schema.ChatMessageTypeHuman, out),
+      }     
+      var conventionalPrefixBuilder strings.Builder // Declare a builder to accumulate the chunks.
+      completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+        conventionalPrefixBuilder.Write(chunk) // Append the chunk to the builder.
+        // fmt.Print(string(chunk))
+        return nil
+      }))
+      if err != nil {
+        log.Fatal(err)
+      }
+      _ = completion
+			// if client.AllowFuncCall() {
+			// 	resp, err := client.CreateFunctionCall(cmd.Context(), out, openai.SummaryPrefixFunc)
+			// 	if err != nil {
+			// 		return err
+			// 	}
+			// 	if len(resp.Choices) > 0 {
+			// 		args := openai.GetSummaryPrefixArgs(resp.Choices[0].Message.FunctionCall.Arguments)
+			// 		summaryPrix = args.Prefix
+			// 	}
+			// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+			// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+			// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+			// 	)
+			// } else {
+			// 	resp, err := client.Completion(cmd.Context(), out)
+			// 	if err != nil {
+			// 		return err
+			// 	}
+			// 	summaryPrix = strings.TrimSpace(resp.Content)
+			// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+			// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+			// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+			// 	)
+			// }
+      summaryPrix := conventionalPrefixBuilder.String()
 			data[prompt.SummarizePrefixKey] = summaryPrix
 		}
 
@@ -263,30 +333,30 @@ var commitCmd = &cobra.Command{
 			}
 		}
 
-		if prompt.GetLanguage(viper.GetString("output.lang")) != prompt.DefaultLanguage {
-			out, err := util.GetTemplateByString(
-				prompt.TranslationTemplate,
-				util.Data{
-					"output_language": prompt.GetLanguage(viper.GetString("output.lang")),
-					"output_message":  commitMessage,
-				},
-			)
-			if err != nil {
-				return err
-			}
-
-			// translate a git commit message
-			color.Cyan("We are trying to translate a git commit message to " + prompt.GetLanguage(viper.GetString("output.lang")) + " language")
-			resp, err := client.Completion(cmd.Context(), out)
-			if err != nil {
-				return err
-			}
-			color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-				", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-				", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			)
-			commitMessage = resp.Content
-		}
+		// if prompt.GetLanguage(viper.GetString("output.lang")) != prompt.DefaultLanguage {
+		// 	out, err := util.GetTemplateByString(
+		// 		prompt.TranslationTemplate,
+		// 		util.Data{
+		// 			"output_language": prompt.GetLanguage(viper.GetString("output.lang")),
+		// 			"output_message":  commitMessage,
+		// 		},
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		//
+		// 	// translate a git commit message
+		// 	color.Cyan("We are trying to translate a git commit message to " + prompt.GetLanguage(viper.GetString("output.lang")) + " language")
+		// 	resp, err := client.Completion(cmd.Context(), out)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+		// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+		// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+		// 	)
+		// 	commitMessage = resp.Content
+		// }
 
 		// unescape html entities in commit message
 		commitMessage = html.UnescapeString(commitMessage)
@@ -296,24 +366,24 @@ var commitCmd = &cobra.Command{
 		color.Yellow("\n" + strings.TrimSpace(commitMessage) + "\n\n")
 		color.Yellow("==================================================")
 
-		outputFile := viper.GetString("output.file")
-		if outputFile == "" {
-			out, err := g.GitDir()
-			if err != nil {
-				return err
-			}
-			outputFile = path.Join(strings.TrimSpace(out), "COMMIT_EDITMSG")
-		}
-		color.Cyan("Write the commit message to " + outputFile + " file")
-		// write commit message to git staging file
-		err = os.WriteFile(outputFile, []byte(commitMessage), 0o644)
-		if err != nil {
-			return err
-		}
-
-		if preview {
-			return nil
-		}
+		// outputFile := viper.GetString("output.file")
+		// if outputFile == "" {
+		// 	out, err := g.GitDir()
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	outputFile = path.Join(strings.TrimSpace(out), "COMMIT_EDITMSG")
+		// }
+		// color.Cyan("Write the commit message to " + outputFile + " file")
+		// // write commit message to git staging file
+		// err = os.WriteFile(outputFile, []byte(commitMessage), 0o644)
+		// if err != nil {
+		// 	return err
+		// }
+		//
+		// if preview {
+		// 	return nil
+		// }
 
 		// git commit automatically
 		color.Cyan("Git record changes to the repository")
