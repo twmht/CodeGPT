@@ -3,7 +3,7 @@ package cmd
 import (
 	"html"
   "fmt"
-	"os"
+	// "os"
 	// "path"
 	// "strconv"
   "log"
@@ -105,7 +105,7 @@ var commitCmd = &cobra.Command{
     // ollama test
     
     // llm, err := ollama.New(ollama.WithModel("codellama:7b"))
-    llm, err := ollama.New(ollama.WithModel("llama2"))
+    llm, err := ollama.New(ollama.WithModel("llama2:13b"))
     if err != nil {
       log.Fatal(err)
     }
@@ -153,10 +153,12 @@ var commitCmd = &cobra.Command{
 			}
 		}
     
+    var commitMessage string
 		// Get code review message from diff datas
 		if _, ok := data[prompt.SummarizeMessageKey]; !ok {
 			out, err := util.GetTemplateByString(
-				prompt.SummarizeFileDiffTemplate,
+				// prompt.SummarizeFileDiffTemplate,
+        prompt.ConventionalCommitTemplate,
 				util.Data{
 					"file_diffs": diff,
 				},
@@ -174,6 +176,8 @@ var commitCmd = &cobra.Command{
 			}
       color.Cyan("We are trying to summarize a git diff")
       color.Green("the prompt are: " + out)  
+
+      // return nil
       
       var outputBuilder strings.Builder // Declare a builder to accumulate the chunks.
       content := []llms.MessageContent{
@@ -191,147 +195,148 @@ var commitCmd = &cobra.Command{
       _ = completion
       
       fmt.Println()
-      fullOutput := outputBuilder.String()
+      commitMessage = outputBuilder.String()
       // fmt.Println("Full output:", fullOutput) // Now you have the full output as a single string.
 			// Get summarize comment from diff datas
 			// resp, err := client.Completion(cmd.Context(), out)
 			// if err != nil {
 			// 	return err
 			// }
-			data[prompt.SummarizeMessageKey] = strings.TrimSpace(fullOutput)
+			// data[prompt.SummarizeMessageKey] = strings.TrimSpace(fullOutput)
 			// color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
 			// 	", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
 			// 	", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
 			// )
 		}
+    color.Red(commitMessage)
 
 		// Get summarize title from diff datas
-		if _, ok := data[prompt.SummarizeTitleKey]; !ok {
-			out, err := util.GetTemplateByString(
-				prompt.SummarizeTitleTemplate,
-				util.Data{
-					"summary_points": data[prompt.SummarizeMessageKey],
-				},
-			)
-			if err != nil {
-				return err
-			}
+		// if _, ok := data[prompt.SummarizeTitleKey]; !ok {
+		// 	out, err := util.GetTemplateByString(
+		// 		prompt.SummarizeTitleTemplate,
+		// 		util.Data{
+		// 			"summary_points": data[prompt.SummarizeMessageKey],
+		// 		},
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		//
+		// 	// Get summarize title from diff datas
+		// 	color.Cyan("We are trying to summarize a title for pull request")
+		// 	// resp, err := client.Completion(cmd.Context(), out)
+  //     content := []llms.MessageContent{
+  //       llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to title a pull request."),
+  //       llms.TextParts(schema.ChatMessageTypeHuman, out),
+  //     }     
+		// 	// if err != nil {
+		// 	// 	return err
+		// 	// }
+  //     var summarizeTitleBuilder strings.Builder // Declare a builder to accumulate the chunks.
+  //     completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+  //       summarizeTitleBuilder.Write(chunk) // Append the chunk to the builder.
+  //       // fmt.Print(string(chunk))
+  //       return nil
+  //     }))
+  //     if err != nil {
+  //       log.Fatal(err)
+  //     }
+  //     _ = completion
+		// 	// color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+		// 	// 	", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+		// 	// 	", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+		// 	// )
+		//
+		// 	// lowercase the first character of first word of the commit message and remove last period
+  //     summarizeTitle := summarizeTitleBuilder.String()
+		// 	summarizeTitle = strings.TrimRight(strings.ToLower(string(summarizeTitle[0]))+summarizeTitle[1:], ".")
+		// 	data[prompt.SummarizeTitleKey] = strings.TrimSpace(summarizeTitle)
+		// }
 
-			// Get summarize title from diff datas
-			color.Cyan("We are trying to summarize a title for pull request")
-			// resp, err := client.Completion(cmd.Context(), out)
-      content := []llms.MessageContent{
-        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to title a pull request."),
-        llms.TextParts(schema.ChatMessageTypeHuman, out),
-      }     
-			// if err != nil {
-			// 	return err
-			// }
-      var summarizeTitleBuilder strings.Builder // Declare a builder to accumulate the chunks.
-      completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-        summarizeTitleBuilder.Write(chunk) // Append the chunk to the builder.
-        // fmt.Print(string(chunk))
-        return nil
-      }))
-      if err != nil {
-        log.Fatal(err)
-      }
-      _ = completion
-			// color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-			// 	", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-			// 	", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			// )
+		// if _, ok := data[prompt.SummarizePrefixKey]; !ok {
+		// 	out, err := util.GetTemplateByString(
+		// 		prompt.ConventionalCommitTemplate,
+		// 		util.Data{
+		// 			"summary_points": data[prompt.SummarizeMessageKey],
+		// 		},
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	color.Cyan("We are trying to get conventional commit prefix")
+		// 	// summaryPrix := ""
+  //     content := []llms.MessageContent{
+  //       llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to summarize a code change."),
+  //       llms.TextParts(schema.ChatMessageTypeHuman, out),
+  //     }     
+  //     var conventionalPrefixBuilder strings.Builder // Declare a builder to accumulate the chunks.
+  //     completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+  //       conventionalPrefixBuilder.Write(chunk) // Append the chunk to the builder.
+  //       // fmt.Print(string(chunk))
+  //       return nil
+  //     }))
+  //     if err != nil {
+  //       log.Fatal(err)
+  //     }
+  //     _ = completion
+		// 	// if client.AllowFuncCall() {
+		// 	// 	resp, err := client.CreateFunctionCall(cmd.Context(), out, openai.SummaryPrefixFunc)
+		// 	// 	if err != nil {
+		// 	// 		return err
+		// 	// 	}
+		// 	// 	if len(resp.Choices) > 0 {
+		// 	// 		args := openai.GetSummaryPrefixArgs(resp.Choices[0].Message.FunctionCall.Arguments)
+		// 	// 		summaryPrix = args.Prefix
+		// 	// 	}
+		// 	// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+		// 	// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+		// 	// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+		// 	// 	)
+		// 	// } else {
+		// 	// 	resp, err := client.Completion(cmd.Context(), out)
+		// 	// 	if err != nil {
+		// 	// 		return err
+		// 	// 	}
+		// 	// 	summaryPrix = strings.TrimSpace(resp.Content)
+		// 	// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
+		// 	// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
+		// 	// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
+		// 	// 	)
+		// 	// }
+  //     summaryPrix := conventionalPrefixBuilder.String()
+		// 	data[prompt.SummarizePrefixKey] = summaryPrix
+		// }
 
-			// lowercase the first character of first word of the commit message and remove last period
-      summarizeTitle := summarizeTitleBuilder.String()
-			summarizeTitle = strings.TrimRight(strings.ToLower(string(summarizeTitle[0]))+summarizeTitle[1:], ".")
-			data[prompt.SummarizeTitleKey] = strings.TrimSpace(summarizeTitle)
-		}
-
-		if _, ok := data[prompt.SummarizePrefixKey]; !ok {
-			out, err := util.GetTemplateByString(
-				prompt.ConventionalCommitTemplate,
-				util.Data{
-					"summary_points": data[prompt.SummarizeMessageKey],
-				},
-			)
-			if err != nil {
-				return err
-			}
-			color.Cyan("We are trying to get conventional commit prefix")
-			// summaryPrix := ""
-      content := []llms.MessageContent{
-        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to summarize a code change."),
-        llms.TextParts(schema.ChatMessageTypeHuman, out),
-      }     
-      var conventionalPrefixBuilder strings.Builder // Declare a builder to accumulate the chunks.
-      completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-        conventionalPrefixBuilder.Write(chunk) // Append the chunk to the builder.
-        // fmt.Print(string(chunk))
-        return nil
-      }))
-      if err != nil {
-        log.Fatal(err)
-      }
-      _ = completion
-			// if client.AllowFuncCall() {
-			// 	resp, err := client.CreateFunctionCall(cmd.Context(), out, openai.SummaryPrefixFunc)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// 	if len(resp.Choices) > 0 {
-			// 		args := openai.GetSummaryPrefixArgs(resp.Choices[0].Message.FunctionCall.Arguments)
-			// 		summaryPrix = args.Prefix
-			// 	}
-			// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-			// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-			// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			// 	)
-			// } else {
-			// 	resp, err := client.Completion(cmd.Context(), out)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// 	summaryPrix = strings.TrimSpace(resp.Content)
-			// 	color.Magenta("PromptTokens: " + strconv.Itoa(resp.Usage.PromptTokens) +
-			// 		", CompletionTokens: " + strconv.Itoa(resp.Usage.CompletionTokens) +
-			// 		", TotalTokens: " + strconv.Itoa(resp.Usage.TotalTokens),
-			// 	)
-			// }
-      summaryPrix := conventionalPrefixBuilder.String()
-			data[prompt.SummarizePrefixKey] = summaryPrix
-		}
-
-		var commitMessage string
-		if viper.GetString("git.template_file") != "" {
-			format, err := os.ReadFile(viper.GetString("git.template_file"))
-			if err != nil {
-				return err
-			}
-			commitMessage, err = util.NewTemplateByString(
-				string(format),
-				data,
-			)
-			if err != nil {
-				return err
-			}
-		} else if viper.GetString("git.template_string") != "" {
-			commitMessage, err = util.NewTemplateByString(
-				viper.GetString("git.template_string"),
-				data,
-			)
-			if err != nil {
-				return err
-			}
-		} else {
-			commitMessage, err = util.GetTemplateByString(
-				git.CommitMessageTemplate,
-				data,
-			)
-			if err != nil {
-				return err
-			}
-		}
+		// var commitMessage string
+		// if viper.GetString("git.template_file") != "" {
+		// 	format, err := os.ReadFile(viper.GetString("git.template_file"))
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	commitMessage, err = util.NewTemplateByString(
+		// 		string(format),
+		// 		data,
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// } else if viper.GetString("git.template_string") != "" {
+		// 	commitMessage, err = util.NewTemplateByString(
+		// 		viper.GetString("git.template_string"),
+		// 		data,
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// } else {
+		// 	commitMessage, err = util.GetTemplateByString(
+		// 		git.CommitMessageTemplate,
+		// 		data,
+		// 	)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
 
 		// if prompt.GetLanguage(viper.GetString("output.lang")) != prompt.DefaultLanguage {
 		// 	out, err := util.GetTemplateByString(
@@ -362,10 +367,10 @@ var commitCmd = &cobra.Command{
 		commitMessage = html.UnescapeString(commitMessage)
 
 		// Output commit summary data from AI
-		color.Yellow("================Commit Summary====================")
-		color.Yellow("\n" + strings.TrimSpace(commitMessage) + "\n\n")
-		color.Yellow("==================================================")
-
+		// color.Yellow("================Commit Summary====================")
+		// color.Yellow("\n" + strings.TrimSpace(commitMessage) + "\n\n")
+		// color.Yellow("==================================================")
+		//
 		// outputFile := viper.GetString("output.file")
 		// if outputFile == "" {
 		// 	out, err := g.GitDir()
@@ -384,14 +389,14 @@ var commitCmd = &cobra.Command{
 		// if preview {
 		// 	return nil
 		// }
-
-		// git commit automatically
-		color.Cyan("Git record changes to the repository")
-		output, err := g.Commit(commitMessage)
-		if err != nil {
-			return err
-		}
-		color.Yellow(output)
+		//
+		// // git commit automatically
+		// color.Cyan("Git record changes to the repository")
+		// output, err := g.Commit(commitMessage)
+		// if err != nil {
+		// 	return err
+		// }
+		// color.Yellow(output)
 		return nil
 	},
 }

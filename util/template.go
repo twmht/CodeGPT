@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"html/template"
+	"text/template"
 	"io/fs"
 )
 
@@ -50,6 +50,7 @@ func processTemplate(name string, data map[string]interface{}) (*bytes.Buffer, e
 // GetTemplateByString returns the parsed template as a string.
 func GetTemplateByString(name string, data map[string]interface{}) (string, error) {
 	tpl, err := processTemplate(name, data)
+  fmt.Println(tpl.String())
 	return tpl.String(), err
 }
 

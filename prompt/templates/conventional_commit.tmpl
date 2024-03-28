@@ -1,8 +1,23 @@
-You went over every file that was changed in it.
-For some of these files changes where too big and were omitted in the files diff summary.
-Determine the best label for the commit.
+Reminders about the git diff format:
+For every file, there are a few metadata lines, like (for example):
+```
+diff --git a/lib/index.js b/lib/index.js
+index aadf691..bfef603 100644
+--- a/lib/index.js
++++ b/lib/index.js
 
-Here are the labels you can choose from:
+```
+This means that `lib/index.js` was modified in this commit. Note that this is only an example.
+Then there is a specifier of the lines that were modified.
+A line starting with `+` means it was added.
+A line that starting with `-` means that line was deleted.
+A line that starts with neither `+` nor `-` is code given for context and better understanding.
+It is not part of the diff.
+After the git diff of the first file, there will be an empty line, and then the git diff of the next file.
+
+You went over every file that was changed in it. And you need to select several labels for theses changes.
+
+Here are the labels you can choose from, these are labels from conventional commit:
 
 - build: Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)
 - chore: Updating libraries, copyrights or other repo setting, includes updating dependencies.
@@ -15,10 +30,22 @@ Here are the labels you can choose from:
 - style: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
 - test: Adding missing tests or correcting existing tests
 
+the following example demonstrates the example of a conventional commit
 
-THE FILE SUMMARIES:
+EXAMPLE SUMMARY COMMENTS:
 ###
-{{ .summary_points }}
+- feat(users): Added default avatar for new users
+  This allows users to have a default profile picture upon registration.
+
+- fix(auth): Corrected the redirect URL after successful login
+  Users will now be correctly redirected to the dashboard instead of the home page.
+
+- refactor(login): Streamlined authentication checks
+  Simplified the authentication logic for readability and maintainability.
 ###
 
-Based on the changes described in the file summaries, What's the best label for the commit? Your answer must be one of the labels above. Don't describe the changes, just write the label.
+Based on the above information, please try to give a conventional commit for the following git diff
+
+###
+{{ .file_diffs }}
+###
