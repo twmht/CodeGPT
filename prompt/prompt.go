@@ -16,6 +16,7 @@ const (
 	SummarizeFileDiffTemplate  = "summarize_file_diff.tmpl"
 	SummarizeTitleTemplate     = "summarize_title.tmpl"
 	ConventionalCommitTemplate = "conventional_commit.tmpl"
+  ConventionalCommitTemplateV2 = "conventional_commit_v2.tmpl"
 	TranslationTemplate        = "translation.tmpl"
 	SummarizePrefixKey         = "summarize_prefix"
 	SummarizeTitleKey          = "summarize_title"

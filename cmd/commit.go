@@ -104,8 +104,9 @@ var commitCmd = &cobra.Command{
 
     // ollama test
     
-    // llm, err := ollama.New(ollama.WithModel("codellama:7b"))
-    llm, err := ollama.New(ollama.WithModel("llama2:13b"))
+    llm, err := ollama.New(ollama.WithModel("codellama:13b"))
+    // llm, err := ollama.New(ollama.WithModel("llama2:13b"))
+    // llm, err := ollama.New(ollama.WithModel("llama2:70b"))
     if err != nil {
       log.Fatal(err)
     }
@@ -158,7 +159,7 @@ var commitCmd = &cobra.Command{
 		if _, ok := data[prompt.SummarizeMessageKey]; !ok {
 			out, err := util.GetTemplateByString(
 				// prompt.SummarizeFileDiffTemplate,
-        prompt.ConventionalCommitTemplate,
+        prompt.ConventionalCommitTemplateV2,
 				util.Data{
 					"file_diffs": diff,
 				},
@@ -181,7 +182,7 @@ var commitCmd = &cobra.Command{
       
       var outputBuilder strings.Builder // Declare a builder to accumulate the chunks.
       content := []llms.MessageContent{
-        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to summarize a git diff."),
+        llms.TextParts(schema.ChatMessageTypeSystem, "You are an expert programmer, and you are trying to give a conventional commit message for a git diff."),
         llms.TextParts(schema.ChatMessageTypeHuman, out),
       }
       completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {

@@ -1,0 +1,18 @@
+I've analyzed a git diff and need help crafting a conventional commit message that encapsulates the changes made. Below, you'll find the labels from conventional commits that could apply, depending on the nature of the changes:
+
+- build: For changes that affect the build system or external dependencies.
+- chore: For updates to libraries, copyrights, or other repository settings.
+- ci: For changes to our CI configuration files and scripts.
+- docs: For non-code changes like fixing typos or adding documentation.
+- feat: For introducing a new feature to the codebase.
+- fix: For patching a bug in the codebase.
+- perf: For changes that improve performance.
+- refactor: For a code change that neither fixes a bug nor adds a feature.
+- style: For changes that do not affect the meaning of the code.
+- test: For adding missing tests or correcting existing tests.
+
+Given this, please provide a conventional commit message for the following git diff:
+
+{{ .file_diffs }}
+
+Please consider the significance of the changes and apply the appropriate labels from the list above. Remember, the commit message should not merely describe the file changes but rather encapsulate the intent and impact of those changes on the codebase.
